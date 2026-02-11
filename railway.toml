@@ -1,0 +1,11 @@
+# Railway Simple Config
+[build]
+  builder = "dockerfile"
+
+[deploy]
+  startCommand = "node build/server.js"
+  healthcheckPath = "/health"
+  restartPolicyType = "ON_FAILURE"
+
+[env]
+  NODE_ENV = "production"

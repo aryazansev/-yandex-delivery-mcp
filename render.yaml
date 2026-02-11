@@ -1,0 +1,16 @@
+services:
+  type: web
+  name: yandex-delivery-mcp
+  env: node
+  plan: free
+  region: oregon
+  buildCommand: npm run build
+  startCommand: node build/server.js
+  healthCheckPath: /health
+  envVars:
+    - key: NODE_ENV
+      value: production
+    - key: MCP_PORT
+      value: 3002
+    - key: YANDEX_DELIVERY_API_KEY
+      sync: false

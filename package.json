@@ -1,0 +1,61 @@
+{
+  "name": "yandex-delivery-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Yandex Delivery API integration - allows Claude to access your Yandex Delivery orders, tracking, and delivery management",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "yandex-delivery-mcp": "./build/index.js",
+    "yandex-delivery-mcp-server": "./build/server.js"
+  },
+  "files": [
+    "build/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "node build/index.js",
+    "dev": "tsx src/index.ts",
+    "server": "tsx src/server.ts",
+    "server:prod": "node build/server.js"
+  },
+  "keywords": [
+    "mcp",
+    "yandex",
+    "delivery",
+    "api",
+    "claude",
+    "ai",
+    "logistics",
+    "courier"
+  ],
+  "author": "aryazansev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aryazansev/-yandex-delivery-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aryazansev/-yandex-delivery-mcp/issues"
+  },
+  "homepage": "https://github.com/aryazansev/-yandex-delivery-mcp#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8",
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "tsx": "^4.19.0",
+    "typescript": "^5.4.5"
+  }
+}
