@@ -2,17 +2,29 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install build dependencies
+RUN apk add --no-cache python3 make g++
+
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including devDependencies for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build TypeScript
 RUN npm run build
+
+# Remove devDependencies after build
+RUN npm prune --production
+
+# Remove build dependencies to reduce image size
+RUN apk del python3 make g++
+
+# Install wget for health check
+RUN apk add --no-cache wget
 
 # Expose port
 EXPOSE 3002
