@@ -27,8 +27,14 @@ export class YandexDeliveryClient {
       options.body = JSON.stringify(body);
     }
 
+    console.error(`[YandexDelivery API] ${method} ${url}`);
+    console.error(`[YandexDelivery API] Body:`, JSON.stringify(body, null, 2));
+
     const response = await fetch(url, options);
     const responseText = await response.text();
+    
+    console.error(`[YandexDelivery API] Response Status: ${response.status}`);
+    console.error(`[YandexDelivery API] Response:`, responseText.substring(0, 1000));
     
     // Try to parse as JSON
     let data;
@@ -40,7 +46,7 @@ export class YandexDeliveryClient {
     }
 
     if (!response.ok) {
-      throw new Error(`API Error: ${data.message || data.error || response.statusText}`);
+      throw new Error(`API Error: ${data.message || data.error || JSON.stringify(data)}`);
     }
 
     return data;
