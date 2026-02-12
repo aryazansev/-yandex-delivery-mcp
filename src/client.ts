@@ -28,10 +28,19 @@ export class YandexDeliveryClient {
     }
 
     const response = await fetch(url, options);
-    const data = await response.json();
+    const responseText = await response.text();
+    
+    // Try to parse as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      // If not JSON, return the text (might be an error page)
+      throw new Error(`API Error: Invalid response format. Status: ${response.status} ${response.statusText}. Response: ${responseText.substring(0, 500)}`);
+    }
 
     if (!response.ok) {
-      throw new Error(`API Error: ${data.message || response.statusText}`);
+      throw new Error(`API Error: ${data.message || data.error || response.statusText}`);
     }
 
     return data;
