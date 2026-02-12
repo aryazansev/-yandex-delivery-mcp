@@ -1,26 +1,20 @@
+import { config } from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import { homedir } from "os";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envPath = join(homedir(), "yandex-delivery-mcp", ".env");
+config({ path: envPath });
+
 import express from 'express';
 import cors from 'cors';
-import { createServer } from './index.js';
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { getServer } from './server-instance.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || Number(process.env.MCP_PORT) || 3002;
-
-// Health check before anything else (no dependencies)
-app.get('/health', (req, res) => {
-  try {
-    res.status(200).json({ 
-      status: 'ok', 
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-      port: process.env.MCP_PORT || 3002
-    });
-  } catch (error) {
-    console.error('Health check error:', error);
-    res.status(500).json({ status: 'error', error: 'Health check failed' });
-  }
-});
 
 // Enable CORS for AI Studio and other clients
 app.use(cors({
@@ -38,6 +32,18 @@ app.use(cors({
 // Parse JSON bodies
 app.use(express.json());
 
+// Health check
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    port: PORT
+  });
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
@@ -46,7 +52,6 @@ app.get('/', (req, res) => {
     endpoints: {
       health: "/health",
       manifest: "/manifest",
-      tools: "/tools",
       mcp: "/mcp"
     }
   });
@@ -58,9 +63,9 @@ app.get('/manifest', (req, res) => {
     name: "yandex-delivery-mcp",
     version: "1.0.0",
     description: "Yandex Delivery integration for AI assistants - manage deliveries, track couriers, and handle orders",
-    author: "yourname",
-    homepage: "https://github.com/yourusername/yandex-delivery-mcp",
-    transport: "http",
+    author: "aryazansev",
+    homepage: "https://github.com/aryazansev/-yandex-delivery-mcp",
+    transport: "streamable-http",
     endpoints: {
       mcp: `/mcp`,
       health: `/health`,
@@ -98,260 +103,82 @@ app.get('/manifest', (req, res) => {
   });
 });
 
-// Create and start MCP server
+// Store transports by session ID
+const transports = new Map();
+
+// MCP Streamable HTTP endpoint
+app.all('/mcp', async (req, res) => {
+  console.log(`[MCP] ${req.method} request to /mcp`);
+  console.log(`[MCP] Headers:`, JSON.stringify(req.headers, null, 2));
+  
+  try {
+    // Get or create server instance
+    const server = await getServer();
+    
+    // Get session ID from header or query
+    const sessionId = req.headers['mcp-session-id'] || req.query.sessionId || 'default';
+    
+    let transport = transports.get(sessionId);
+    
+    if (!transport) {
+      console.log(`[MCP] Creating new transport for session: ${sessionId}`);
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => String(sessionId),
+      });
+      
+      await server.connect(transport);
+      transports.set(sessionId, transport);
+      
+      console.log(`[MCP] Transport created and connected`);
+    }
+    
+    // Handle the request
+    await transport.handleRequest(req, res, req.body);
+    
+  } catch (error) {
+    console.error('[MCP] Error handling request:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32603,
+          message: error instanceof Error ? error.message : 'Internal error'
+        },
+        id: null
+      });
+    }
+  }
+});
+
+// Start HTTP server
 async function startServer() {
   try {
     console.log('🚀 Starting Yandex Delivery MCP Server...');
     console.log('📍 Environment:', {
       NODE_ENV: process.env.NODE_ENV,
-      PORT: process.env.MCP_PORT || 3002,
+      PORT: PORT,
       YANDEX_DELIVERY_API_KEY: process.env.YANDEX_DELIVERY_API_KEY ? '✅ Set' : '❌ Missing'
     });
     
-    // Create MCP server instance
-    const mcpServer = await createServer();
-    
-    // Mount MCP server on /mcp endpoint
-    app.use('/mcp', async (req, res) => {
-      try {
-        res.json({
-          status: 'MCP Server running',
-          endpoints: {
-            tools: '/tools',
-            manifest: '/manifest'
-          }
-        });
-      } catch (error) {
-        console.error('MCP Error:', error);
-        res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
-      }
-    });
-
-    // List all available tools
-    app.get('/tools', async (req, res) => {
-      try {
-        res.json({
-          tools: [
-            {
-              name: "calculate_offers",
-              description: "Calculate available delivery options and prices",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  route_points: { 
-                    type: "array", 
-                    description: "Route points (minimum 2)" 
-                  },
-                  requirements: { 
-                    type: "object", 
-                    description: "Delivery requirements" 
-                  }
-                },
-                required: ["route_points"]
-              }
-            },
-            {
-              name: "create_claim",
-              description: "Create a new delivery claim/order",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  route_points: { type: "array" },
-                  items: { type: "array" },
-                  requirements: { type: "object" }
-                },
-                required: ["route_points"]
-              }
-            },
-            {
-              name: "get_claim_info",
-              description: "Get detailed information about a claim",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string", description: "Claim ID" }
-                },
-                required: ["claim_id"]
-              }
-            },
-            {
-              name: "accept_claim",
-              description: "Accept a delivery offer",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" },
-                  version: { type: "number" }
-                },
-                required: ["claim_id", "version"]
-              }
-            },
-            {
-              name: "cancel_claim",
-              description: "Cancel an existing claim",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" },
-                  version: { type: "number" }
-                },
-                required: ["claim_id", "version"]
-              }
-            },
-            {
-              name: "check_price",
-              description: "Check delivery price without creating a claim",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  route_points: { type: "array" }
-                },
-                required: ["route_points"]
-              }
-            },
-            {
-              name: "get_tariffs",
-              description: "Get available tariffs for a location",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  start_point: { type: "array", description: "Coordinates [lat, lon]" }
-                }
-              }
-            },
-            {
-              name: "get_driver_phone",
-              description: "Get courier phone number for calling",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" }
-                },
-                required: ["claim_id"]
-              }
-            },
-            {
-              name: "get_performer_position",
-              description: "Get courier current position and movement data",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" }
-                },
-                required: ["claim_id"]
-              }
-            },
-            {
-              name: "get_points_eta",
-              description: "Get estimated time of arrival for route points",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" }
-                },
-                required: ["claim_id"]
-              }
-            },
-            {
-              name: "get_tracking_links",
-              description: "Get tracking links for courier tracking",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" }
-                },
-                required: ["claim_id"]
-              }
-            },
-            {
-              name: "get_confirmation_code",
-              description: "Get confirmation code for current point",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" }
-                },
-                required: ["claim_id"]
-              }
-            },
-            {
-              name: "get_proof_of_delivery",
-              description: "Get delivery confirmation data",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" }
-                },
-                required: ["claim_id"]
-              }
-            },
-            {
-              name: "edit_claim",
-              description: "Edit claim parameters before acceptance",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" },
-                  version: { type: "number" }
-                },
-                required: ["claim_id", "version"]
-              }
-            },
-            {
-              name: "search_claims",
-              description: "Search for claims with filters",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  limit: { type: "number" },
-                  statuses: { type: "array" },
-                  phone: { type: "string" }
-                }
-              }
-            },
-            {
-              name: "get_claim_journal",
-              description: "Get claim history/changelog",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  claim_id: { type: "string" }
-                },
-                required: ["claim_id"]
-              }
-            }
-          ]
-        });
-      } catch (error) {
-        res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
-      }
-    });
-
-    // Start HTTP server
     const server = app.listen(PORT, () => {
       console.log(`✅ Yandex Delivery MCP Server running on HTTP port ${PORT}`);
       console.log(`📋 Manifest: http://localhost:${PORT}/manifest`);
-      console.log(`🔧 Tools: http://localhost:${PORT}/tools`);
       console.log(`❤️  Health: http://localhost:${PORT}/health`);
       console.log(`🔗 MCP Endpoint: http://localhost:${PORT}/mcp`);
       console.log('');
       console.log('🔗 To connect with AI Studio:');
       console.log(`   Use this URL: http://localhost:${PORT}/manifest`);
       console.log('');
-      console.log('🌐 Repository: https://github.com/yourusername/yandex-delivery-mcp');
+      console.log('🌐 Repository: https://github.com/aryazansev/-yandex-delivery-mcp');
     });
 
-    // Handle server errors
     server.on('error', (error) => {
       console.error('❌ Server error:', error);
       process.exit(1);
     });
 
-    console.log('🏥 Health check ready on /health');
-
   } catch (error) {
     console.error('❌ Failed to start server:', error);
-    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
     process.exit(1);
   }
 }
@@ -367,5 +194,4 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-// Start the server
 startServer();
