@@ -59,6 +59,7 @@ const toolsSchema = {
       claim_id: z.string(),
     }),
     handler: async (params: any) => {
+      console.log(`[get_claim_info] params:`, params, "claim_id:", params?.claim_id);
       return await client.getClaimInfo(params.claim_id);
     }
   },
