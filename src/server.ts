@@ -331,7 +331,8 @@ app.get('/tools', (req, res) => {
 
 // MCP JSON-RPC endpoint
 app.post('/mcp', async (req, res) => {
-  console.log(`[MCP] JSON-RPC request:`, JSON.stringify(req.body, null, 2));
+  console.log(`[MCP] RAW body:`, JSON.stringify(req.body, null, 2));
+  console.log(`[MCP] RAW params:`, JSON.stringify(req.body?.params, null, 2));
   
   try {
     const { method, params, id } = req.body;
