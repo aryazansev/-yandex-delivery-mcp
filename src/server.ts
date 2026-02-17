@@ -353,8 +353,12 @@ app.post('/mcp', async (req, res) => {
     
     // Handle tools/call method
     if (method === 'tools/call') {
-      const { name, arguments: args } = params;
+      console.log(`[MCP] params:`, JSON.stringify(params, null, 2));
+      const toolParams = params.arguments || params;
+      const { name } = params;
       const tool = (toolsSchema as any)[name];
+      
+      console.log(`[MCP] tool: ${name}, toolParams:`, JSON.stringify(toolParams, null, 2));
       
       if (!tool) {
         return res.status(404).json({
@@ -365,7 +369,8 @@ app.post('/mcp', async (req, res) => {
       }
       
       try {
-        const result = await tool.handler(args || {});
+        console.log(`[MCP] Calling tool handler with:`, JSON.stringify(toolParams, null, 2));
+        const result = await tool.handler(toolParams || {});
         return res.json({
           jsonrpc: "2.0",
           result: {
