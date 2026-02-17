@@ -56,10 +56,14 @@ const toolsSchema = {
   get_claim_info: {
     description: "Получить информацию о заявке",
     parameters: z.object({
-      claim_id: z.string(),
+      claim_id: z.string().optional().describe("ID заявки (UUID)"),
+      request_code: z.string().optional().describe("Номер заказа в системе заказчика (например 132567A)"),
     }),
     handler: async (params: any) => {
-      console.log(`[get_claim_info] params:`, params, "claim_id:", params?.claim_id);
+      console.log(`[get_claim_info] params:`, params);
+      if (params.request_code) {
+        return await client.getClaimInfoByRequestCode(params.request_code);
+      }
       return await client.getClaimInfo(params.claim_id);
     }
   },

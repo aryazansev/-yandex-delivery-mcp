@@ -152,6 +152,11 @@ export class YandexDeliveryClient {
     return this.request("POST", `/b2b/cargo/integration/v2/claims/info?claim_id=${encodeURIComponent(claimId)}`, {});
   }
 
+  // Получить информацию по заявке по номеру заказа (request_code)
+  async getClaimInfoByRequestCode(requestCode: string): Promise<any> {
+    return this.request("POST", `/b2b/cargo/integration/v2/claims/info?request_code=${encodeURIComponent(requestCode)}`, {});
+  }
+
   // Подтвердить заявку (claim_id как query param)
   async acceptClaim(claimId: string, version: number): Promise<any> {
     return this.request("POST", `/b2b/cargo/integration/v2/claims/accept?claim_id=${encodeURIComponent(claimId)}`, {
