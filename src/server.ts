@@ -213,6 +213,7 @@ const toolsSchema = {
       created_to: z.string().optional(),
       statuses: z.array(z.string()).optional(),
       phone: z.string().optional(),
+      external_order_id: z.string().optional().describe("Внешний номер заказа (например LO-793770465)"),
     }),
     handler: async (params: any) => {
       return await client.searchClaims(params);

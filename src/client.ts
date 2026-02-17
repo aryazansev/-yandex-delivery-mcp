@@ -147,28 +147,26 @@ export class YandexDeliveryClient {
     return this.request("POST", "/b2b/cargo/integration/v2/claims/create", params);
   }
 
-  // Получить информацию по заявке
+  // Получить информацию по заявке (claim_id как query param)
   async getClaimInfo(claimId: string): Promise<any> {
-    return this.request("POST", "/b2b/cargo/integration/v2/claims/info", { claim_id: claimId });
+    return this.request("POST", `/b2b/cargo/integration/v2/claims/info?claim_id=${encodeURIComponent(claimId)}`, {});
   }
 
-  // Подтвердить заявку
+  // Подтвердить заявку (claim_id как query param)
   async acceptClaim(claimId: string, version: number): Promise<any> {
-    return this.request("POST", "/b2b/cargo/integration/v2/claims/accept", {
-      claim_id: claimId,
+    return this.request("POST", `/b2b/cargo/integration/v2/claims/accept?claim_id=${encodeURIComponent(claimId)}`, {
       version,
     });
   }
 
   // Получить информацию об условиях отмены
   async getCancelInfo(claimId: string): Promise<any> {
-    return this.request("POST", "/b2b/cargo/integration/v2/claims/cancel-info", { claim_id: claimId });
+    return this.request("POST", `/b2b/cargo/integration/v2/claims/cancel-info?claim_id=${encodeURIComponent(claimId)}`, {});
   }
 
   // Отменить заявку
   async cancelClaim(claimId: string, version: number, cancel_state?: string): Promise<any> {
-    return this.request("POST", "/b2b/cargo/integration/v2/claims/cancel", {
-      claim_id: claimId,
+    return this.request("POST", `/b2b/cargo/integration/v2/claims/cancel?claim_id=${encodeURIComponent(claimId)}`, {
       version,
       cancel_state,
     });
@@ -342,6 +340,7 @@ export class YandexDeliveryClient {
     statuses?: string[];
     phone?: string;
     claim_id?: string;
+    external_order_id?: string;
   }): Promise<any> {
     return this.request("POST", "/b2b/cargo/integration/v2/claims/search", params);
   }
